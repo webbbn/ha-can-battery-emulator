@@ -18,3 +18,5 @@ The default set of topics is compatible with the Victron interface suppor in the
 The only supported battery protocol supported is Plontech protocol, which was derived thanks to the [ESPHome JK BMS CAN github project](https://github.com/Uksa007/esphome-jk-bms-can).
 
 The current code is mimimally tested with a [Deye/Sunsynk 16k inverter](https://www.deyeinverter.com/product/hybrid-inverter-1/sun12-14-16ksg01lp1-1216kw-single-phase-3-mppt-hybrid-inverter.html), so use at your own risk.
+
+Note: The [Enable Can Addon](https://github.com/dries007/HA_EnableCAN) is recommended for configuring the CAN bus interface on Home Assistant.

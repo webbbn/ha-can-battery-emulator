@@ -1,6 +1,6 @@
 name: "CAN-Battery-Emulator"
 description: "Home Assistant CAN Battery Emulator"
-version: "1.0.0"
+version: "1.1.0"
 slug: "can-battery-emulator"
 init: false
 host_dbus: true
@@ -26,9 +26,8 @@ options:
   device: "can0"
   baudrate: 500000
   verbose_log: false
+  log_interval: 10.0
   sample_period: 2.0
-  publish_period: 3.0
-  watchdog: true
   expire_values_after: 20
 
   # Battery options (Default for 16S)
@@ -56,9 +55,8 @@ schema:
   interface: "str"
   device: "str"
   verbose_log: "bool?"
+  log_interval: "float?"
   sample_period: "float?"
-  publish_period: "float?"
-  watchdog: "bool?"
   expire_values_after: "float?"
 
   # Battery Options

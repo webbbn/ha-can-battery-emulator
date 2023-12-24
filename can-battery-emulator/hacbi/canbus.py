@@ -19,5 +19,8 @@ def open_can(iface, dev):
         return None
     return bus
 
+def close_can(bus):
+    bus.shutdown()
+
 def create_msg(id, data):
     return can.Message(is_extended_id=False, arbitration_id=id, data=data)

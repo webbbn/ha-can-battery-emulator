@@ -4,12 +4,14 @@ import json
 import logging
 import time
 import random
+import asyncio
 
-from hacbi.canbus import send_msg, open_can
+from hacbi.canbus import send_msg, open_can, close_can
 from hacbi.msgs import *
-from hacbi.mqtt import *
+import hacbi.mqtt as mqtt
 
 options_file = '/data/options.json'
+
 option_names = [
     'interface',
     'device',
@@ -18,9 +20,8 @@ option_names = [
     "mqtt_password",
     "mqtt_broker",
     'verbose_log',
+    'log_interval',
     'sample_period',
-    'publish_period',
-    'watchdog',
     'expire_values_after',
     'bat_modules',
     'charge_volts',
@@ -55,7 +56,9 @@ except:
 verify_options(option_names, config)
 
 # Initizlie the logging interface
-if config['verbose_log']:
+verbose = config['verbose_log']
+log_interval = config['log_interval']
+if verbose:
     logging.basicConfig(level=logging.DEBUG, format='%(process)d-%(levelname)s-%(message)s')
 else:
     logging.basicConfig(level=logging.INFO, format='%(process)d-%(levelname)s-%(message)s')
@@ -78,8 +81,7 @@ topic_list.append(power_topic)
     
 # Create the mqtt client interface
 client_id = f'python-mqtt-{random.randint(0, 1000)}'
-client = connect_mqtt(client_id, config['mqtt_broker'], config['mqtt_port'],
-                      config['mqtt_user'], config['mqtt_password'], topic_list)
+client = mqtt.Client(client_id, config['mqtt_broker'], config['mqtt_port'], config['mqtt_user'], config['mqtt_password'], topic_list)
 
 charge_volts = config['charge_volts']
 absorb_volts = config['absorption_volts']
@@ -104,103 +106,64 @@ wait_time = 0.02
 soh = 90
 temperature = 30
 
-while True:
-    time.sleep(sample_period)
+async def process_messages():
+    counter = 0
 
-    client.loop()
+    while await client.task_wait(sample_period):
 
-    # Retrieve the battery information from the MQTT topics
-    voltage = get_sensor_float(voltage_topic)
-    current = get_sensor_float(current_topic)
-    soc = get_sensor_float(soc_topic)
-    power = get_sensor_float(power_topic)
-    logging.info(f"Current battery values: {voltage}V, {current}A, {power}W, {soc}%")
-    if voltage == 0 or current == 0 or soc == 0:
-        logging.info(f"Waiting for battery stats")
-        continue
+        # Retrieve the battery information from the MQTT topics
+        voltage = client.get_sensor_float(voltage_topic)
+        current = client.get_sensor_float(current_topic)
+        soc = client.get_sensor_float(soc_topic)
+        power = client.get_sensor_float(power_topic)
+        cur_log_level = logging.DEBUG
+        if counter == log_interval:
+            cur_log_level = logging.INFO
+            counter = 0
+        else:
+            counter += 1
+        if voltage == 0 or current == 0 or soc == 0:
+            ready = False
+            ready_msg = "NOT ready"
+        else:
+            ready = True
+            ready_msg = "READY"
+        logging.log(cur_log_level, f"Current battery values ({ready_msg}): {voltage}V, {current}A, {power}W, {soc}%")
+        if not ready:
+            continue
+        msg = create_limits_msg(charge_volts, min_volts, charge_current, discharge_current)
+        send_msg(bus, msg)
+        await asyncio.sleep(wait_time)
 
-    msg = create_limits_msg(charge_volts, min_volts, charge_current, discharge_current)
-    send_msg(bus, msg)
-    time.sleep(wait_time)
+        msg = create_soc_msg(soc, soh)
+        send_msg(bus, msg)
+        await asyncio.sleep(wait_time)
 
-    msg = create_soc_msg(soc, soh)
-    send_msg(bus, msg)
-    time.sleep(wait_time)
+        msg = create_state_msg(voltage, current, temperature)
+        send_msg(bus, msg)
+        await asyncio.sleep(wait_time)
 
-    msg = create_state_msg(voltage, current, temperature)
-    send_msg(bus, msg)
-    time.sleep(wait_time)
+        msg = create_charge_msg(charge, discharge)
+        #send_msg(bus, msg)
+        await asyncio.sleep(wait_time)
 
-    msg = create_charge_msg(charge, discharge)
-    #send_msg(bus, msg)
-    time.sleep(wait_time)
+        msg = create_cell_stats_msg(max_cell_temp, min_cell_temp, max_cell_voltage, min_cell_voltage)
+        send_msg(bus, msg)
+        await asyncio.sleep(wait_time)
 
-    msg = create_cell_stats_msg(max_cell_temp, min_cell_temp, max_cell_voltage, min_cell_voltage)
-    send_msg(bus, msg)
-    time.sleep(wait_time)
-    
-    msg = create_cell_stats_id_msg(max_temp_cell, min_temp_cell, max_voltage_cell, min_voltage_cell)
-    send_msg(bus, msg)
-    time.sleep(wait_time)
+        msg = create_cell_stats_id_msg(max_temp_cell, min_temp_cell, max_voltage_cell, min_voltage_cell)
+        send_msg(bus, msg)
+        await asyncio.sleep(wait_time)
 
-    msg = create_inverter_type_msg()
-    send_msg(bus, msg)
-    time.sleep(wait_time)
+        msg = create_inverter_type_msg()
+        send_msg(bus, msg)
+        await asyncio.sleep(wait_time)
 
+# Create the message processing task
+client.add_task(process_messages())
 
-# from ha_mqtt_discoverable import Settings
-# from ha_mqtt_discoverable.sensors import BinarySensor, BinarySensorInfo
+# Run until asked to stop
+client.connect_and_run()
 
-# # Configure the required parameters for the MQTT broker
-# mqtt_settings = Settings.MQTT(host="nas.local", username="hass", password="jvc2sun")
-
-# # Information about the sensor
-# sensor_info = BinarySensorInfo(name="MySensor", device_class="motion")
-
-# settings = Settings(mqtt=mqtt_settings, entity=sensor_info)
-
-# # Instantiate the sensor
-# mysensor = BinarySensor(settings)
-
-# # Change the state of the sensor, publishing an MQTT message that gets picked up by HA
-# mysensor.on()
-# mysensor.off()
-
-# # You can also set custom attributes on the sensor via a Python dict
-# mysensor.set_attributes({"my attribute": "awesome"})
-
-# from ha_mqtt_discoverable import Settings, DeviceInfo
-# from ha_mqtt_discoverable.sensors import BinarySensor, BinarySensorInfo
-
-# # Configure the required parameters for the MQTT broker
-# mqtt_settings = Settings.MQTT(host="nas.local", username="hass", password="jvc2sun")
-
-
-
-
-# # Define the device. At least one of `identifiers` or `connections` must be supplied
-# device_info = DeviceInfo(name="My device", identifiers="device_id")
-
-# # Associate the sensor with the device via the `device` parameter
-# # `unique_id` must also be set, otherwise Home Assistant will not display the device in the UI
-# motion_sensor_info = BinarySensorInfo(name="My motion sensor", device_class="motion", unique_id="my_motion_sensor", device=device_info)
-
-# motion_settings = Settings(mqtt=mqtt_settings, entity=motion_sensor_info)
-
-# # Instantiate the sensor
-# motion_sensor = BinarySensor(motion_settings)
-
-# # Change the state of the sensor, publishing an MQTT message that gets picked up by HA
-# motion_sensor.on()
-
-# # An additional sensor can be added to the same device, by re-using the DeviceInfo instance previously defined
-# door_sensor_info = BinarySensorInfo(name="My door sensor", device_class="door", unique_id="my_door_sensor", device=device_info)
-# door_settings = Settings(mqtt=mqtt_settings, entity=door_sensor_info)
-
-# # Instantiate the sensor
-# door_sensor = BinarySensor(settings)
-
-# # Change the state of the sensor, publishing an MQTT message that gets picked up by HA
-# door_sensor.on()
-
-# # The two sensors should be visible inside Home Assistant under the device `My device`
+# Close the can bus connection
+close_can(bus)

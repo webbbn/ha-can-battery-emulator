@@ -1,6 +1,6 @@
 name: "CAN-Battery-Emulator"
 description: "Home Assistant CAN Battery Emulator"
-version: "1.1.0"
+version: "1.1.1"
 slug: "can-battery-emulator"
 init: false
 host_dbus: true

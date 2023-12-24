@@ -109,7 +109,7 @@ class Client:
         # Wait until we either get a stop event or our check interval timeout occurs (1 second)
         try:
             await asyncio.wait_for(self.stop.wait(), timeout=timeout)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             logging.debug("Task timeout expired. Task continuing.")
             return True
         else:

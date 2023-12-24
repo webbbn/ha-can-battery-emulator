@@ -12,3 +12,8 @@
 - Tested for proper re-connection to MQTT server that goes offline
 - Implemented clean shutdown
 - Improved logging to reduce log clutter in normal operation
+
+## 1.1.1
+
+- Fixed namespace issue the prevented timeouts
+

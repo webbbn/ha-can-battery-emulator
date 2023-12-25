@@ -21,3 +21,8 @@
 
 - Updated documentation and configuration
 
+# 1.1.3
+
+- Fixed github CI/CD builds
+
+

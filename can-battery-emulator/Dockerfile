@@ -5,11 +5,12 @@ WORKDIR /app
 
 COPY . .
 
-RUN apk add --no-cache gcc musl-dev python3 py3-pip && \
-    python3 -m venv venv && \
-    . ./venv/bin/activate && \
-    python -m pip install --upgrade pip && \
-    python -m pip install -r requirements.txt
+RUN apk add --no-cache python3
+RUN apk add --no-cache python3-dev
+RUN apk add --no-cache py3-pip
+RUN apk add build-base
+RUN python3 -m venv venv
+RUN . ./venv/bin/activate && python -m pip install -r requirements.txt
 
 RUN chmod a+x run.sh
 

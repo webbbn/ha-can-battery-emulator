@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN apk add apk add --no-cache gcc musl-dev python3 py3-pip && \
+RUN apk add --no-cache gcc musl-dev python3 py3-pip && \
     python3 -m venv venv && \
     . ./venv/bin/activate && \
     python -m pip install --upgrade pip && \

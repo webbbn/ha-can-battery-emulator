@@ -17,3 +17,7 @@
 
 - Fixed namespace issue the prevented timeouts
 
+## 1.1.2
+
+- Updated documentation and configuration
+

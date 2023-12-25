@@ -11,7 +11,7 @@ RUN apk add --no-cache --virtual .build-deps \
   build-base
 RUN python3 -m venv venv
 RUN . ./venv/bin/activate && python -m pip install -r requirements.txt
-RUN apt del .build-deps
+RUN apk del .build-deps
 
 RUN chmod a+x run.sh
 

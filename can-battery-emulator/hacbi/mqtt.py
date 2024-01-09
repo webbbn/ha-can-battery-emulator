@@ -2,6 +2,7 @@ import logging
 import sys
 import asyncio
 import signal
+import json
 
 from gmqtt import Client as MQTTClient
 
@@ -33,6 +34,7 @@ class Client:
         self.expire_counter = 0
         self.values = {}
         self.tasks = []
+        self.discover_topics = {}
         self.loop = asyncio.get_event_loop()
 
         # Create the MQTT client class
@@ -66,6 +68,10 @@ class Client:
     def on_connect(self, client, flags, rc, properties):
         logging.info('Connected to MQTT broker.')
 
+        # Create all of the discover topics
+        for topic in self.discover_topics:
+            self.client.publish(topic, self.discover_topics[topic])
+
         # Subscribe to all the requested topics.
         for topic in self.topic_list:
             self.client.subscribe(topic, qos=0)
@@ -94,6 +100,13 @@ class Client:
             return 0
         else:
             return float(val)
+
+    def get_sensor_binary(self, topic):
+        val = self.get_value(topic)
+        if val is "ON":
+            return True
+        else:
+            return False
 
     def shutdown(self, *args):
         self.stop.set()
@@ -159,3 +172,25 @@ class Client:
 
         # Wait until we get a shutdown event
         self.loop.run_until_complete(self.run_until_shutdown())
+
+    def add_switch(self, root_topic, topic, name):
+        '''Add a user-controllable binary switch'''
+
+        # Create the topic
+        topic = f"{root_topic}/{topic}/config"
+
+        # Create the paload structure and convert it to JSON
+        payload={"unique_id": topic,
+                 "name": name,
+                 "state_topic": f"{root_topic}/{topic}",
+                 "command_topic": f"{root_topic}/{topic}/set",
+                 "availability_topic": f"{root_topic}/{topic}/available",
+                 "payload_on": "ON",
+                 "payload_off": "OFF",
+                 "state_on": "ON",
+                 "state_off": "OFF",
+                 "optimistic": False,
+                 "qos": 0,
+                 "retain": True}
+        json_payload=json.dumps(payload)
+        self.discover_topics[f"homeassistant/switch/{topic}/config"] = payload

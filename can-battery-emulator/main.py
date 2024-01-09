@@ -30,6 +30,8 @@ option_names = [
     'rebulk_offset',
     'charge_current',
     'discharge_current',
+    'force_charge_topic',
+    'force_discharge_topic',
     ]
 
 def die(value=-1):
@@ -73,12 +75,14 @@ voltage_topic = config['voltage_topic']
 current_topic = config['current_topic']
 soc_topic = config['soc_topic']
 power_topic = config['power_topic']
+force_charge_topic = config['force_charge_topic']
+force_discharge_topic = config['force_discharge_topic']
 topic_list = []
 topic_list.append(voltage_topic)
 topic_list.append(current_topic)
 topic_list.append(soc_topic)
 topic_list.append(power_topic)
-    
+
 # Create the mqtt client interface
 client_id = f'python-mqtt-{random.randint(0, 1000)}'
 client = mqtt.Client(client_id, config['mqtt_broker'], config['mqtt_port'], config['mqtt_user'], config['mqtt_password'], topic_list)
@@ -90,6 +94,7 @@ rebulk_offset = config['rebulk_offset']
 charge_current = config['charge_current']
 discharge_current = config['discharge_current']
 sample_period = config['sample_period']
+root_topic = config['root_topic']
 charge = False
 discharge = False
 
@@ -106,12 +111,18 @@ wait_time = 0.02
 soh = 90
 temperature = 30
 
+# Add the force charge/discharge switch topics
+client.add_switch(root_topic, force_charge_topic, "Force Charge")
+client.add_switch(root_topic, force_discharge_topic, "Force Discharge")
+
 async def process_messages():
     counter = 0
 
     while await client.task_wait(sample_period):
 
         # Retrieve the battery information from the MQTT topics
+        force_charge = client.get_sensor_binary(force_charge_topic)
+        force_discharge = client.get_sensor_binary(force_discharge_topic)
         voltage = client.get_sensor_float(voltage_topic)
         current = client.get_sensor_float(current_topic)
         soc = client.get_sensor_float(soc_topic)
@@ -128,7 +139,7 @@ async def process_messages():
         else:
             ready = True
             ready_msg = "READY"
-        logging.log(cur_log_level, f"Current battery values ({ready_msg}): {voltage}V, {current}A, {power}W, {soc}%")
+        logging.log(cur_log_level, f"Current battery values ({ready_msg}): {voltage}V, {current}A, {power}W, {soc}%, charge={charge}, discharge={discharge}")
         if not ready:
             continue
         msg = create_limits_msg(charge_volts, min_volts, charge_current, discharge_current)

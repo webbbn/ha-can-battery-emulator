@@ -25,4 +25,6 @@
 
 - Fixed github CI/CD builds
 
+# 1.2.0
 
+- Added force charge/discharge switches

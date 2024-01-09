@@ -103,7 +103,7 @@ class Client:
 
     def get_sensor_binary(self, topic):
         val = self.get_value(topic)
-        if val is "ON":
+        if val == "ON":
             return True
         else:
             return False
@@ -187,4 +187,4 @@ class Client:
                  "expire_after": 20,
                  }
         json_payload=json.dumps(payload)
-        self.discover_topics[f"homeassistant/switch/{topic}/config"] = payload
+        self.discover_topics[f"homeassistant/switch/{root_topic}/{topic}/config"] = payload

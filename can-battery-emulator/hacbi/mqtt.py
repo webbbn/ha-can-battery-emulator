@@ -177,20 +177,14 @@ class Client:
         '''Add a user-controllable binary switch'''
 
         # Create the topic
-        topic = f"{root_topic}/{topic}/config"
+        config_topic = f"{root_topic}_{topic}_config"
 
         # Create the paload structure and convert it to JSON
-        payload={"unique_id": topic,
+        payload={"unique_id": config_topic,
                  "name": name,
+                 "device_class": "outlet",
                  "state_topic": f"{root_topic}/{topic}",
-                 "command_topic": f"{root_topic}/{topic}/set",
-                 "availability_topic": f"{root_topic}/{topic}/available",
-                 "payload_on": "ON",
-                 "payload_off": "OFF",
-                 "state_on": "ON",
-                 "state_off": "OFF",
-                 "optimistic": False,
-                 "qos": 0,
-                 "retain": True}
+                 "expire_after": 20,
+                 }
         json_payload=json.dumps(payload)
         self.discover_topics[f"homeassistant/switch/{topic}/config"] = payload

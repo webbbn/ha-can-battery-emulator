@@ -1,6 +1,6 @@
 name: "CAN-Battery-Emulator"
 description: "Home Assistant CAN Battery Emulator"
-version: "1.2.2"
+version: "1.3.0"
 slug: "can-battery-emulator"
 url: "https://github.com/webbbn/ha-can-battery-emulator/tree/main/can-battery-emulator/"
 init: false
@@ -55,8 +55,13 @@ options:
   power_topic: "victron/soc/power"
 
   # Force charge/discharge
-  force_charge_topic: "force_charge"
-  force_discharge_topic: "force_discharge"
+  root_topic: "can-battery-emulator"
+  force_charge_1_topic: "force_charge_1"
+  force_charge_2_topic: "force_charge_2"
+  charge_topic: "charge"
+  discharge_topic: "discharge"
+  charge_current_topic: "charge_current"
+  identifier: "402347982"
 
 schema:
   interface: "str"
@@ -89,5 +94,10 @@ schema:
   power_topic: "str"
 
   # Force charge/discharge
-  force_charge_topic: "str"
-  force_discharge_topic: "str"
+  root_topic: "str"
+  force_charge_1_topic: "str"
+  force_charge_2_topic: "str"
+  charge_topic: "str"
+  discharge_topic: "str"
+  charge_current_topic: "str"
+  identifier: "str"

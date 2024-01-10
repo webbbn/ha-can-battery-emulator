@@ -30,8 +30,12 @@ option_names = [
     'rebulk_offset',
     'charge_current',
     'discharge_current',
-    'force_charge_topic',
-    'force_discharge_topic',
+    'root_topic',
+    'force_charge_1_topic',
+    'force_charge_2_topic',
+    'discharge_topic',
+    'charge_topic',
+    'identifier'
     ]
 
 def die(value=-1):
@@ -75,13 +79,22 @@ voltage_topic = config['voltage_topic']
 current_topic = config['current_topic']
 soc_topic = config['soc_topic']
 power_topic = config['power_topic']
-force_charge_topic = config['force_charge_topic']
-force_discharge_topic = config['force_discharge_topic']
+root_topic = config['root_topic']
+force_charge_1_topic = config['force_charge_1_topic']
+force_charge_2_topic = config['force_charge_2_topic']
+charge_topic = config['charge_topic']
+discharge_topic = config['discharge_topic']
+charge_current_topic = config['charge_current_topic']
 topic_list = []
 topic_list.append(voltage_topic)
 topic_list.append(current_topic)
 topic_list.append(soc_topic)
 topic_list.append(power_topic)
+topic_list.append(f"{root_topic}/switch/{force_charge_1_topic}")
+topic_list.append(f"{root_topic}/switch/{force_charge_2_topic}")
+topic_list.append(f"{root_topic}/switch/{charge_topic}")
+topic_list.append(f"{root_topic}/switch/{discharge_topic}")
+topic_list.append(f"{root_topic}/number/{charge_current_topic}")
 
 # Create the mqtt client interface
 client_id = f'python-mqtt-{random.randint(0, 1000)}'
@@ -112,8 +125,12 @@ soh = 90
 temperature = 30
 
 # Add the force charge/discharge switch topics
-client.add_switch(root_topic, force_charge_topic, "Force Charge")
-client.add_switch(root_topic, force_discharge_topic, "Force Discharge")
+identifier = config['identifier']
+client.add_switch(root_topic, force_charge_1_topic, "Force Charge 1", identifier)
+client.add_switch(root_topic, force_charge_2_topic, "Force Charge 2", identifier)
+client.add_switch(root_topic, charge_topic, "Charge", identifier, default=True)
+client.add_switch(root_topic, discharge_topic, "Discharge", identifier, default=True)
+client.add_number(root_topic, charge_current_topic, "Charge Current", identifier, "A", 0, charge_current, default=charge_current)
 
 async def process_messages():
     counter = 0
@@ -121,12 +138,15 @@ async def process_messages():
     while await client.task_wait(sample_period):
 
         # Retrieve the battery information from the MQTT topics
-        force_charge = client.get_sensor_binary(force_charge_topic)
-        force_discharge = client.get_sensor_binary(force_discharge_topic)
-        voltage = client.get_sensor_float(voltage_topic)
-        current = client.get_sensor_float(current_topic)
-        soc = client.get_sensor_float(soc_topic)
-        power = client.get_sensor_float(power_topic)
+        force_charge_1 = client.get_sensor_binary(f"{root_topic}/switch/{force_charge_1_topic}")
+        force_charge_2 = client.get_sensor_binary(f"{root_topic}/switch/{force_charge_2_topic}")
+        charge = client.get_sensor_binary(f"{root_topic}/switch/{charge_topic}")
+        discharge = client.get_sensor_binary(f"{root_topic}/switch/{discharge_topic}")
+        cur_charge_current = client.get_sensor_number(f"{root_topic}/number/{charge_current_topic}")
+        voltage = client.get_sensor_number(voltage_topic)
+        current = client.get_sensor_number(current_topic)
+        soc = client.get_sensor_number(soc_topic)
+        power = client.get_sensor_number(power_topic)
         cur_log_level = logging.DEBUG
         if counter == log_interval:
             cur_log_level = logging.INFO
@@ -139,10 +159,10 @@ async def process_messages():
         else:
             ready = True
             ready_msg = "READY"
-        logging.log(cur_log_level, f"Current battery values ({ready_msg}): {voltage}V, {current}A, {power}W, {soc}%, charge={charge}, discharge={discharge}")
+        logging.log(cur_log_level, f"Current battery values ({ready_msg}): {voltage}V, {current}A, {power}W, {soc}%, charge={charge}, discharge={discharge}, force_charge_1={force_charge_1}, force_charge_2={force_charge_2}")
         if not ready:
             continue
-        msg = create_limits_msg(charge_volts, min_volts, charge_current, discharge_current)
+        msg = create_limits_msg(charge_volts, min_volts, cur_charge_current, discharge_current)
         send_msg(bus, msg)
         await asyncio.sleep(wait_time)
 
@@ -154,8 +174,8 @@ async def process_messages():
         send_msg(bus, msg)
         await asyncio.sleep(wait_time)
 
-        msg = create_charge_msg(charge, discharge)
-        #send_msg(bus, msg)
+        msg = create_charge_msg(force_charge_1, force_charge_2, charge, discharge)
+        send_msg(bus, msg)
         await asyncio.sleep(wait_time)
 
         msg = create_cell_stats_msg(max_cell_temp, min_cell_temp, max_cell_voltage, min_cell_voltage)

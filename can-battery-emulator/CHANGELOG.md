@@ -28,3 +28,14 @@
 # 1.2.0
 
 - Added force charge/discharge switches
+
+# 1.3.0
+
+- Added controls for controling charging externally via the following controls:
+  - Charge switch - enable/disable charging
+  - Discharge switch - enable/disable discharging
+  - Force charge 1 - Force charging of the battery mode 1
+  - Force charge 1 - Force charging of the battery mode 2
+  - Charge current - Force the charging current
+
+  

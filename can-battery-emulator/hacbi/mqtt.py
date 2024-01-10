@@ -34,7 +34,7 @@ class Client:
         self.expire_counter = 0
         self.values = {}
         self.tasks = []
-        self.discover_topics = {}
+        self.discover_topics = []
         self.loop = asyncio.get_event_loop()
 
         # Create the MQTT client class
@@ -69,8 +69,9 @@ class Client:
         logging.info('Connected to MQTT broker.')
 
         # Create all of the discover topics
-        for topic in self.discover_topics:
-            self.client.publish(topic, self.discover_topics[topic])
+        for config_topic, payload, topic, default in self.discover_topics:
+            self.client.publish(config_topic, payload)
+            self.client.publish(topic, default)
 
         # Subscribe to all the requested topics.
         for topic in self.topic_list:
@@ -80,6 +81,9 @@ class Client:
         logging.debug(f"{topic} {qos} {payload} {properties}")
         if not topic in self.values:
             logging.info(f"Aquired initial value for {topic}: {payload}")
+        elif self.values[topic][1] is None:
+            self.values[topic] = [ payload, None ]
+            return
         self.values[topic] = [ payload, self.expire_counter ]
 
     def on_disconnect(self, client, packet, exc=None):
@@ -94,7 +98,7 @@ class Client:
         else:
             return None
 
-    def get_sensor_float(self, topic):
+    def get_sensor_number(self, topic):
         val = self.get_value(topic)
         if val is None:
             return 0
@@ -103,7 +107,7 @@ class Client:
 
     def get_sensor_binary(self, topic):
         val = self.get_value(topic)
-        if val == "ON":
+        if val == b'ON':
             return True
         else:
             return False
@@ -136,7 +140,7 @@ class Client:
             # Check each topic value to see if it hasn't changed in the expire_after interval
             for topic, [value, counter] in list(self.values.items()):
                 logging.debug(f"Checking expiration: topic={topic} value={value} counter={counter} expire_counter={self.expire_counter} expire_after={self.expire_after}")
-                if self.expire_counter > (counter + self.expire_after):
+                if counter is not None and self.expire_counter > (counter + self.expire_after):
                     # Remove the value on expiration
                     logging.warning(f"Topic: {topic} has expired after no updates for {self.expire_after} seconds")
                     del self.values[topic]
@@ -173,18 +177,57 @@ class Client:
         # Wait until we get a shutdown event
         self.loop.run_until_complete(self.run_until_shutdown())
 
-    def add_switch(self, root_topic, topic, name):
+    def add_switch(self, root_topic, topic, name, identifier, default="OFF"):
         '''Add a user-controllable binary switch'''
 
         # Create the topic
-        config_topic = f"{root_topic}_{topic}_config"
+        uid = f"{root_topic}__switch_{topic}"
+        full_topic = f"{root_topic}/switch/{topic}"
 
         # Create the paload structure and convert it to JSON
-        payload={"unique_id": config_topic,
+        payload={"unique_id": uid,
                  "name": name,
                  "device_class": "outlet",
-                 "state_topic": f"{root_topic}/{topic}",
-                 "expire_after": 20,
+                 "state_topic": full_topic,
+                 "command_topic": full_topic,
+                 "device": {
+                     "identifiers": [identifier],
+                     "manufacturer": "CANBatteryEmulator",
+                     "model": "Emulated",
+                     "name": "CANBattery"
+                     },
                  }
         json_payload=json.dumps(payload)
-        self.discover_topics[f"homeassistant/switch/{root_topic}/{topic}/config"] = payload
+        config_topic = f"homeassistant/switch/{root_topic}/{topic}/config"
+        self.values[full_topic] = [ default, None ]
+        self.discover_topics.append([config_topic, payload, full_topic, default])
+ 
+    def add_number(self, root_topic, topic, name, identifier, units, minimum, maximum, default=0.0):
+        '''Add a user-settable number'''
+
+        # Create the topic
+        uid = f"{root_topic}__number_{topic}"
+        full_topic = f"{root_topic}/number/{topic}"
+
+        # Create the paload structure and convert it to JSON
+        payload={"unique_id": uid,
+                 "name": name,
+                 "unit_of_measure": units,
+                 "min": minimum,
+                 "max": maximum,
+                 "state_topic": full_topic,
+                 "command_topic": full_topic,
+                 "device": {
+                     "identifiers": [identifier],
+                     "manufacturer": "CANBatteryEmulator",
+                     "model": "Emulated",
+                     "name": "CANBattery"
+                     },
+                 }
+        json_payload=json.dumps(payload)
+        config_topic = f"homeassistant/number/{root_topic}/{topic}/config"
+        self.values[full_topic] = [ default, None ]
+        self.discover_topics.append([config_topic, payload, full_topic, float(default)])
+
+    def publish(self, topic, value):
+        self.client.publish(topic, value)

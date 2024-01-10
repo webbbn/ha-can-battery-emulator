@@ -15,15 +15,18 @@ def create_state_msg(voltage, current, temperature):
     data = struct.pack('<Hhh', int(round(voltage * 100)), int(round(current * 10)), int(round(temperature * 10)))
     return create_msg(0x356, data)
 
-def create_charge_msg(charge, discharge):
-    if charge and discharge:
-        val = 0xC0
-    elif charge:
-        val = 0x80
-    elif discharge:
-        val = 0x40
-    else:
-        val = 0x00
+def create_charge_msg(force_charge_1, force_charge_2, charge, discharge, full_charge=False):
+    val = 0x00000
+    if full_charge:
+        val |= 0x80
+    if force_charge_2:
+        val |= 0x10
+    if force_charge_1:
+        val |= 0x20
+    if discharge:
+        val |= 0x40
+    if charge:
+        val |= 0x80
     data = struct.pack('<H', val)
     return create_msg(0x35C, data)
 

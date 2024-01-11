@@ -1,6 +1,12 @@
-# Based on Example Home Assistant add-on repository
+# Battery emulator for inverter control over CAN bus
 
-This repository contains an addon for enabling communications with an inverer CAN bus that emulates a standard battery.
+This repository contains an addon for enabling communications with an inverer CAN bus that emulates a standard battery, including Pylontech and other batteries that use a similar protocol.
+
+This addon is still work in progress, so use at your own risk. Reporting incorrect battery settings can be very detrimental to your batteries, or worse.
+
+Currently, battery current, voltage, and SOC are reported using user-configurable MQTT topics. I use a [Victron SmartShunt](https://www.amazon.com/Victron-SmartShunt-500AMP-Bluetooth-Battery/dp/B0856PHNLX) with the [batmon-ha](https://github.com/fl4p/batmon-ha) addon to get voltage, current and SOC. SOH, along with a few other paramters are just defaulted currently. Charging parameters are all configurable, and you should make sure that they are correct for your battery/batteries.
+
+This addon will also add some entities to HA for controlling the charge message, which contains a pair of switches for charge/discharge, a pair of switches to control forced charging, and a numerical charge current selector. My Deye inverter will initiate charging at the specified current if force_charge_1 is enabled, but YMMV, and you could damage your battery/hardware with improper settings.
 
 Add-on documentation: <https://developers.home-assistant.io/docs/add-ons>
 
